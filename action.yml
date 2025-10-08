@@ -1,6 +1,10 @@
 name: 'Checkout Nix Flake'
 description: 'Checkout a flake only using nix'
 inputs:
+  dir:
+    description: 'Directory path to the flake, relative to the directory root'
+    required: false
+    default: ""
   nix_config:
     description: 'Configuration options to pass to Nix env.'
     required: false
@@ -19,7 +23,7 @@ runs:
     - name: Prepare
       id: prepare
       run: |
-        echo FLAKE_URL="git+https://${GITHUB_REPOSITORY_OWNER}:${{ github.token }}@${GITHUB_SERVER_URL##*://}/${GITHUB_REPOSITORY}" >> $GITHUB_ENV
+        echo FLAKE_URL="git+https://${GITHUB_REPOSITORY_OWNER}:${{ github.token }}@${GITHUB_SERVER_URL##*://}/${GITHUB_REPOSITORY}?dir=${{ inputs.dir }}" >> $GITHUB_ENV
         echo FLAKE_REF="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}" >> $GITHUB_ENV
         echo FLAKE_REV="${GITHUB_SHA}" >> $GITHUB_ENV
         echo NIX_CONFIG="${{ inputs.nix_config }}" >> $GITHUB_ENV
@@ -29,12 +33,18 @@ runs:
     - name: Fetch from remote
       id: fetch
       run: |
-        nix flake metadata "${FLAKE_URL}?ref=${FLAKE_REF}&rev=${FLAKE_REV}"
+        nix flake metadata "${FLAKE_URL}&ref=${FLAKE_REF}&rev=${FLAKE_REV}"
       shell: bash
 
     - name: Chekout from store
       id: checkout
       run: |
-        nix flake clone --offline --quiet --refresh --dest "${{ inputs.path }}" "${FLAKE_URL}?ref=${FLAKE_REF}"
+        nix flake clone --offline --quiet --refresh --dest "${{ inputs.path }}" "${FLAKE_URL}&ref=${FLAKE_REF}"
+      shell: bash
+
+    - name: Show outputs
+      id: show
+      working-directory: "${{ inputs.path }}/${{ inputs.dir }}"
+      run: |
         nix flake show
       shell: bash
